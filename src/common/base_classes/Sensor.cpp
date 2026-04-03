@@ -1,30 +1,33 @@
 #include "Sensor.h"
+
 #include "../foc_utils.h"
 #include "../time_utils.h"
-
-
+#include "stm32g474xx.h"
+#include "system_stm32g4xx.h"
 
 void Sensor::update() {
     float val = getSensorAngle();
-    if (val<0) // sensor angles are strictly non-negative. Negative values are used to signal errors.
-        return; // TODO signal error, e.g. via a flag and counter
-    angle_prev_ts = _micros();
+    if (val < 0) [[unlikely]]  // sensor angles are strictly non-negative.
+                               // Negative values are used to signal errors.
+      return;                  // TODO signal error, e.g. via a flag and counter
+    angle_prev_cyc = DWT->CYCCNT;
     float d_angle = val - angle_prev;
     // if overflow happened track it as full rotation
-    if(abs(d_angle) > (0.8f*_2PI) ) full_rotations += ( d_angle > 0 ) ? -1 : 1; 
+    if (abs(d_angle) > (0.8f * _2PI)) [[unlikely]]
+      full_rotations += (d_angle > 0) ? -1 : 1;
     angle_prev = val;
 }
-
 
  /** get current angular velocity (rad/s) */
 float Sensor::getVelocity() {
     // calculate sample time
     // if timestamps were unsigned, we could get rid of this section, unsigned overflow handles it correctly
-    float Ts = (angle_prev_ts - vel_angle_prev_ts)*1e-6f;
+    const float cyc_to_s = 1.f / SystemCoreClock;
+    float Ts = (angle_prev_cyc - vel_angle_prev_cyc) * cyc_to_s;
     if (Ts < 0.0f) {    // handle micros() overflow - we need to reset vel_angle_prev_ts
         vel_angle_prev = angle_prev;
         vel_full_rotations = full_rotations;
-        vel_angle_prev_ts = angle_prev_ts;
+        vel_angle_prev_cyc = angle_prev_cyc;
         return velocity;
     }
     if (Ts < min_elapsed_time) return velocity; // don't update velocity if deltaT is too small
@@ -48,7 +51,7 @@ float Sensor::getVelocity() {
 
         vel_angle_prev = angle_prev;
         vel_full_rotations = full_rotations;
-        vel_angle_prev_ts = angle_prev_ts;
+        vel_angle_prev_cyc = angle_prev_cyc;
     }
     
     return velocity;
@@ -61,12 +64,12 @@ void Sensor::init() {
     getSensorAngle(); // call once
     delayMicroseconds(1);
     vel_angle_prev = getSensorAngle(); // call again
-    vel_angle_prev_ts = _micros();
+    vel_angle_prev_cyc = DWT->CYCCNT;
     delay(1);
     getSensorAngle(); // call once
     delayMicroseconds(1);
     angle_prev = getSensorAngle(); // call again
-    angle_prev_ts = _micros();
+    angle_prev_cyc = DWT->CYCCNT;
 }
 
 

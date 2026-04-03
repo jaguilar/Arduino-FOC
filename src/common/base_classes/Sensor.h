@@ -129,9 +129,10 @@ class Sensor{
         // velocity calculation variables
         float velocity=0.0f;
         float angle_prev=0.0f; // result of last call to getSensorAngle(), used for full rotations and velocity
-        long angle_prev_ts=0; // timestamp of last call to getAngle, used for velocity
+        uint32_t angle_prev_cyc =
+            0;  // timestamp of last call to getAngle, used for velocity
         float vel_angle_prev=0.0f; // angle at last call to getVelocity, used for velocity
-        long vel_angle_prev_ts=0; // last velocity calculation timestamp
+        uint32_t vel_angle_prev_cyc = 0;  // last velocity calculation timestamp
         int32_t full_rotations=0; // full rotation tracking
         int32_t vel_full_rotations=0; // previous full rotation value for velocity calculation
 };
